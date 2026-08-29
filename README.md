@@ -117,21 +117,6 @@ Add the Turso pair if you want public reports to survive a redeploy — without 
 
 ---
 
-## SEO / AEO / GEO
-
-Discoverability was treated as a feature, not an afterthought — this only helps people if they can find it.
-
-- **Per-language URLs** (`/`, `/ne`, `/hi`), each statically prerendered with its own `<html lang>`, title, description and keywords. Client-side language switching would have meant Google indexing **English only** — no Nepali discoverability at all.
-- **Reciprocal `hreflang`** across all three plus `x-default`, in both `<head>` and the sitemap.
-- **Structured data** (`schema.org`): `SpecialAnnouncement` (Google's crisis-notice type), `FAQPage`, `Event`, `Dataset`, `ItemList` of emergency services, `WebSite`, `WebPage`, `Organization`.
-- **Real FAQ content** in all three languages, rendered as always-present DOM (`<details>`, not lazily mounted) and mirrored exactly in the `FAQPage` markup.
-- **AI crawlers explicitly allowed** — GPTBot, ClaudeBot, PerplexityBot, Google-Extended and others. Being quotable when someone asks an assistant "what happened in Nepal" is the point.
-- **Generated OG image**, canonical tags, `geo.region` hints, preconnects.
-
-**No hidden text.** Hidden keyword stuffing is treated as cloaking under Google's spam policies and risks a manual action — it would cost the ranking it's trying to win. Every keyword appears in copy people actually read, or in structured data, which is the legitimate machine-readable layer.
-
----
-
 ## Caveats
 
 Modelled river discharge is not a gauge reading. AI summaries can be wrong. Casualty figures are provisional and change daily. This is not a government service — in an emergency, call **1149** or **100** and follow official instructions.
