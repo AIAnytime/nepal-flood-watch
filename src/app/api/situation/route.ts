@@ -3,7 +3,17 @@ import { fetchNews } from "@/lib/news";
 import { fetchHydrology } from "@/lib/hydro";
 import { GroqBusy, chat, llmConfigured, parseJson } from "@/lib/llm";
 
-export const revalidate = 1800;
+/**
+ * Computed per request, cached at the edge by the headers below rather than by
+ * Next's static prerender.
+ *
+ * Two reasons this must not be prerendered. It reports a live disaster, so baking
+ * an answer at build time is wrong on its face. And the provider credentials are
+ * stored as Vercel "Sensitive" variables, which are injected at runtime only — a
+ * build-time render has no key, silently produces the degraded body, and then
+ * serves that frozen result to everyone.
+ */
+export const dynamic = "force-dynamic";
 
 /**
  * This route does two upstream fetches and a model call. On a cold start that can
