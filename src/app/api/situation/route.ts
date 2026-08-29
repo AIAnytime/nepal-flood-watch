@@ -6,13 +6,30 @@ import { GroqBusy, chat, llmConfigured, parseJson } from "@/lib/llm";
 export const revalidate = 1800;
 
 /**
- * Every response carries CDN cache headers. This route calls an LLM, and the free
- * Groq tier allows 8,000 tokens a minute — without a shared cache in front of it a
- * few dozen concurrent readers would exhaust the quota and the page would degrade
- * for everyone. The data underneath only moves every half hour anyway.
+ * This route does two upstream fetches and a model call. On a cold start that can
+ * outrun the default budget, and a timeout here is what pinned a degraded response
+ * at the edge after the first deploy.
  */
-const CACHE = {
+export const maxDuration = 60;
+
+/**
+ * Every response carries CDN cache headers. This route calls an LLM, and provider
+ * quotas are finite — without a shared cache in front of it a few dozen concurrent
+ * readers would exhaust the budget and the page would degrade for everyone. The
+ * data underneath only moves every half hour anyway.
+ *
+ * Success and degradation are cached very differently on purpose. A single failed
+ * model call — a cold start, a rate-limited minute, a provider blip — must not be
+ * pinned at the edge for half an hour and served to every visitor, which is exactly
+ * what a uniform TTL did on the first request after a deploy. A degraded response
+ * therefore expires in a minute so the next reader retries and the page self-heals.
+ */
+const CACHE_OK = {
   "cache-control": "public, s-maxage=1800, stale-while-revalidate=3600",
+} as const;
+
+const CACHE_DEGRADED = {
+  "cache-control": "public, s-maxage=60, stale-while-revalidate=120",
 } as const;
 
 /**
@@ -45,7 +62,10 @@ export async function GET() {
     };
 
     if (!llmConfigured()) {
-      return NextResponse.json({ ...base, situation: null, aiAvailable: false }, { headers: CACHE });
+      return NextResponse.json(
+        { ...base, situation: null, aiAvailable: false },
+        { headers: CACHE_DEGRADED }
+      );
     }
 
     const headlines = news.articles
@@ -67,7 +87,7 @@ export async function GET() {
 
     try {
       const { content: raw } = await chat({
-          json: true,
+        json: true,
         temperature: 0.1,
         maxTokens: 900,
         messages: [
@@ -115,7 +135,7 @@ export async function GET() {
 
     return NextResponse.json(
       { ...base, situation, aiAvailable: situation !== null, aiError },
-      { headers: CACHE }
+      { headers: situation ? CACHE_OK : CACHE_DEGRADED }
     );
   } catch (err) {
     if (err instanceof GroqBusy) {
