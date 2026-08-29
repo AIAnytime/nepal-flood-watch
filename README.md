@@ -2,7 +2,7 @@
 
 **Open flood intelligence for Nepal, built during the Bhotekoshi–Trishuli disaster of 26 August 2026.**
 
-Live river levels, cross-checked news, verified emergency numbers and a public help board — free, no login, no paywall, in **English, नेपाली and हिन्दी**, light and dark.
+Live river levels, cross-checked news, verified emergency numbers and a public help board — in **English, नेपाली and हिन्दी**.
 
 > Independent public-interest project. Not a government service. In an emergency call **1149** (National Emergency Operation Centre) or **100** (Nepal Police).
 
