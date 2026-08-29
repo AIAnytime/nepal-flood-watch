@@ -1,26 +1,294 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Design tokens. Light is the base; dark redefines only what changes, so a
+   colour can never exist in one theme and not the other.
+   --------------------------------------------------------------------------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f7f8f9;
+  --bg-elev: #ffffff;
+  --bg-sunken: #eef0f2;
+  --border: #e0e3e7;
+  --border-strong: #c9cdd3;
+  --text: #14181d;
+  --text-muted: #5c6672;
+  --text-faint: #8b95a1;
+
+  --accent: #0d6f87;
+  --accent-hover: #0a5a6f;
+  --accent-soft: #e2f2f6;
+  --accent-text: #07536a;
+
+  --severe: #c62828;
+  --severe-soft: #fdeaea;
+  --high: #cc5a12;
+  --high-soft: #fdf0e6;
+  --moderate: #9a7300;
+  --moderate-soft: #fbf3dd;
+  --normal: #14795c;
+  --normal-soft: #e3f4ee;
+  --unknown: #6b7480;
+  --unknown-soft: #eef0f2;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-lg: 0 4px 12px rgba(16, 24, 40, 0.07), 0 12px 28px rgba(16, 24, 40, 0.06);
+  --radius: 14px;
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0c1014;
+  --bg-elev: #141a20;
+  --bg-sunken: #0f1418;
+  --border: #232c35;
+  --border-strong: #33404c;
+  --text: #e8edf2;
+  --text-muted: #9aa7b4;
+  --text-faint: #6b7885;
+
+  --accent: #3bb6d1;
+  --accent-soft: #10333d;
+  --accent-text: #7fd6ea;
+
+  --severe: #f76f6f;
+  --severe-soft: #3a1a1c;
+  --high: #f0954e;
+  --high-soft: #3a2517;
+  --moderate: #dcb63f;
+  --moderate-soft: #33290f;
+  --normal: #46c99f;
+  --normal-soft: #10322a;
+  --unknown: #8d99a6;
+  --unknown-soft: #1c242b;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 6px 16px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.35);
+  color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-elev: var(--bg-elev);
+  --color-bg-sunken: var(--bg-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-faint: var(--text-faint);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-text: var(--accent-text);
+  --color-severe: var(--severe);
+  --color-high: var(--high);
+  --color-moderate: var(--moderate);
+  --color-normal: var(--normal);
+  --radius-card: var(--radius);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--border);
+}
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 7.5rem;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
+
+:lang(ne) body,
+[data-locale="ne"],
+[data-locale="hi"] {
+  font-family: var(--font-noto-dev), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Devanagari sits lower and denser than Latin; a touch more leading keeps
+   matras from colliding with the line above. */
+[data-locale="ne"] p,
+[data-locale="hi"] p,
+[data-locale="ne"] li,
+[data-locale="hi"] li {
+  line-height: 1.75;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* --- Reusable primitives --------------------------------------------------- */
+
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.risk-severe { color: var(--severe); background: var(--severe-soft); }
+.risk-high { color: var(--high); background: var(--high-soft); }
+.risk-moderate { color: var(--moderate); background: var(--moderate-soft); }
+.risk-normal { color: var(--normal); background: var(--normal-soft); }
+.risk-unknown { color: var(--unknown); background: var(--unknown-soft); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.5625rem 0.9375rem;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.btn-primary { background: var(--accent); color: #fff; }
+:root[data-theme="dark"] .btn-primary { color: #06222b; }
+.btn-primary:not(:disabled):hover { filter: brightness(1.08); }
+
+.btn-ghost {
+  background: var(--bg-elev);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+.btn-ghost:not(:disabled):hover { background: var(--bg-sunken); }
+
+.btn-danger { background: var(--severe); color: #fff; }
+:root[data-theme="dark"] .btn-danger { color: #2a0d0e; }
+.btn-danger:not(:disabled):hover { filter: brightness(1.08); }
+
+.field {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  padding: 0.5625rem 0.75rem;
+  font-size: 0.875rem;
+  color: var(--text);
+  transition: border-color 0.15s ease;
+}
+.field::placeholder { color: var(--text-faint); }
+.field:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+
+.label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.375rem;
+  letter-spacing: 0.01em;
+}
+
+.section-title {
+  font-size: clamp(1.25rem, 2.5vw, 1.625rem);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.hairline { border-top: 1px solid var(--border); }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-sunken) 25%, var(--border) 50%, var(--bg-sunken) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.pulse-dot {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--severe);
+}
+.pulse-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--severe);
+  animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  80%, 100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .pulse-dot::after, .skeleton { animation: none; }
+  * { transition-duration: 0.01ms !important; }
+}
+
+/* Scrollable regions keep their own overflow so the page never scrolls sideways. */
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* --- Leaflet theming ------------------------------------------------------- */
+.leaflet-container {
+  background: var(--bg-sunken) !important;
+  font-family: inherit !important;
+  border-radius: var(--radius);
+}
+/* Photographic and elevation-tinted tiles must not be inverted — only dimmed so
+   they sit comfortably against a dark page. */
+.tile-dim {
+  filter: brightness(0.72) contrast(1.05) saturate(0.85);
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--bg-elev) !important;
+  color: var(--text) !important;
+  box-shadow: var(--shadow-lg) !important;
+  border-radius: 10px !important;
+}
+.leaflet-popup-content { margin: 0.75rem 0.875rem !important; font-size: 0.8125rem !important; }
+.leaflet-control-zoom a {
+  background: var(--bg-elev) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.leaflet-control-attribution {
+  background: color-mix(in srgb, var(--bg-elev) 85%, transparent) !important;
+  color: var(--text-faint) !important;
+  font-size: 10px !important;
+}
+.leaflet-control-attribution a { color: var(--text-muted) !important; }

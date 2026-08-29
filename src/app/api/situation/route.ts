@@ -1,0 +1,133 @@
+import { NextResponse } from "next/server";
+import { fetchNews } from "@/lib/news";
+import { fetchHydrology } from "@/lib/hydro";
+import { GroqBusy, chat, llmConfigured, parseJson } from "@/lib/llm";
+
+export const revalidate = 1800;
+
+/**
+ * Every response carries CDN cache headers. This route calls an LLM, and the free
+ * Groq tier allows 8,000 tokens a minute — without a shared cache in front of it a
+ * few dozen concurrent readers would exhaust the quota and the page would degrade
+ * for everyone. The data underneath only moves every half hour anyway.
+ */
+const CACHE = {
+  "cache-control": "public, s-maxage=1800, stale-while-revalidate=3600",
+} as const;
+
+/**
+ * Casualty figures are never hard-coded here. They are extracted from the live
+ * headlines by the model, and each one must carry the outlet that reported it —
+ * a figure without an attributable source is dropped rather than shown.
+ */
+type Figure = { label: string; value: string; source: string; asOf: string };
+type Situation = { figures: Figure[]; summary: string; confidence: string };
+
+export async function GET() {
+  try {
+    const [news, hydro] = await Promise.all([fetchNews(), fetchHydrology()]);
+
+    const elevated = hydro.stations.filter(
+      (s) => s.risk === "severe" || s.risk === "high" || s.risk === "moderate"
+    );
+    const wettest = [...hydro.stations].sort((a, b) => (b.rain3d ?? 0) - (a.rain3d ?? 0))[0];
+
+    const base = {
+      stationsMonitored: hydro.stations.length,
+      stationsElevated: elevated.length,
+      wettest: wettest
+        ? { name: wettest.name, district: wettest.district, rain3d: wettest.rain3d }
+        : null,
+      feedsOk: news.feedsOk,
+      feedsTotal: news.feedsTotal,
+      articleCount: news.articles.length,
+      fetchedAt: Date.now(),
+    };
+
+    if (!llmConfigured()) {
+      return NextResponse.json({ ...base, situation: null, aiAvailable: false }, { headers: CACHE });
+    }
+
+    const headlines = news.articles
+      .slice(0, 22)
+      .map(
+        (a) =>
+          `- [${a.source}, ${
+            a.publishedAt ? new Date(a.publishedAt).toISOString().slice(0, 16) : "date unknown"
+          }] ${a.title}`
+      )
+      .join("\n");
+
+    // The AI layer is enrichment, not the substance. Station counts, rainfall and
+    // feed health are computed above without a model, so a Groq outage or a
+    // rate-limited minute must degrade this endpoint, never fail it — otherwise
+    // the whole overview spins on a loading skeleton for every visitor.
+    let situation: Situation | null = null;
+    let aiError: string | null = null;
+
+    try {
+      const { content: raw } = await chat({
+          json: true,
+        temperature: 0.1,
+        maxTokens: 900,
+        messages: [
+          {
+            role: "system",
+            content:
+              "You extract verified facts from news headlines about the ongoing Nepal flood disaster. " +
+              "Rules you must not break:\n" +
+              "1. Only report a number if it appears in the headlines given to you. Never estimate, " +
+              "interpolate, or recall a figure from memory.\n" +
+              "2. Every figure must name the outlet that reported it.\n" +
+              "3. If outlets disagree, report the most recent and say so in the summary.\n" +
+              "4. If a category has no figure in the headlines, omit it entirely.\n" +
+              "5. The label must carry any scope the headline attaches to the number. If a " +
+              "headline says '898 missing from hydropower projects', the label is 'Missing at " +
+              "hydropower sites', never 'People missing' — presenting a subset as a total is the " +
+              "single worst error you can make here.\n" +
+              "6. Prefer the broadest, most recent official totals for the headline figures " +
+              "(overall dead, overall missing, injured) and put narrower figures after them.\n" +
+              'Return JSON: {"figures":[{"label":"Confirmed dead","value":"626","source":"NBC News","asOf":"2026-08-29"}],' +
+              '"summary":"2-3 sentences, plain language, no drama","confidence":"high|medium|low"}',
+          },
+          {
+            role: "user",
+            content: `Today is ${new Date().toISOString().slice(0, 10)}.\n\nHeadlines:\n${headlines}`,
+          },
+        ],
+      });
+
+      situation = parseJson<Situation>(raw);
+
+      // Defensive: strip any figure the model produced without attribution.
+      if (situation?.figures) {
+        situation.figures = situation.figures.filter(
+          (f) => f && f.value && f.source && String(f.source).trim().length > 1
+        );
+      }
+    } catch (err) {
+      console.error("[api/situation] AI enrichment failed, serving base data:", err);
+      aiError =
+        err instanceof GroqBusy
+          ? "AI summary is rate-limited right now."
+          : "AI summary is unavailable right now.";
+    }
+
+    return NextResponse.json(
+      { ...base, situation, aiAvailable: situation !== null, aiError },
+      { headers: CACHE }
+    );
+  } catch (err) {
+    if (err instanceof GroqBusy) {
+      return NextResponse.json(
+        {
+          error: "The AI service is busy right now. Please try again in a few seconds.",
+          retryAfter: err.retryAfterSeconds,
+        },
+        { status: 429, headers: { "retry-after": String(Math.ceil(err.retryAfterSeconds)) } }
+      );
+    }
+    console.error("[api/situation]", err);
+    return NextResponse.json({ error: "Could not assemble situation" }, { status: 502 });
+  }
+}
