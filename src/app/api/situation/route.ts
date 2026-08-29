@@ -34,13 +34,22 @@ export const maxDuration = 60;
  * what a uniform TTL did on the first request after a deploy. A degraded response
  * therefore expires in a minute so the next reader retries and the page self-heals.
  */
-const CACHE_OK = {
-  "cache-control": "public, s-maxage=1800, stale-while-revalidate=3600",
-} as const;
+/**
+ * Next strips s-maxage from cache-control on a dynamic route, which would leave
+ * every visitor triggering a paid model call. Vercel honours CDN-Cache-Control
+ * separately and Next leaves it alone, so the edge TTL is set there and the plain
+ * cache-control header is left to govern the browser only.
+ */
+function cacheHeaders(seconds: number, swr: number) {
+  return {
+    "cache-control": "public, max-age=0, must-revalidate",
+    "CDN-Cache-Control": `public, s-maxage=${seconds}, stale-while-revalidate=${swr}`,
+    "Vercel-CDN-Cache-Control": `public, s-maxage=${seconds}, stale-while-revalidate=${swr}`,
+  };
+}
 
-const CACHE_DEGRADED = {
-  "cache-control": "public, s-maxage=60, stale-while-revalidate=120",
-} as const;
+const CACHE_OK = cacheHeaders(1800, 3600);
+const CACHE_DEGRADED = cacheHeaders(60, 120);
 
 /**
  * Casualty figures are never hard-coded here. They are extracted from the live
